@@ -1,9 +1,8 @@
-package com.exaple.kafka;
+package com.exaple.kafka.producer;
 
+import com.exaple.kafka.UtilsConfigKafka;
 import org.apache.kafka.clients.producer.KafkaProducer;
-import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.common.serialization.StringSerializer;
 
 import java.util.Properties;
 
@@ -11,14 +10,14 @@ public class Producer {
 
     public static void main(String[] args) {
         //create Producer properties
-        Properties properties = UtilsConfig.getPropertiesConfigurationKafka();
+        Properties properties = UtilsConfigKafka.getPropertiesConfigurationProducer();
 
         //create the producer
         KafkaProducer<String, String> producer = new KafkaProducer<>(properties);
 
         //create a producer record
         ProducerRecord<String, String> record =
-                new ProducerRecord<>("first_topic", "hello world, GUBA!!");
+                new ProducerRecord<>(UtilsConfigKafka.NAME_TOPIC, "hello world, GUBA!!");
 
         //send data - asynchronous
         producer.send(record);

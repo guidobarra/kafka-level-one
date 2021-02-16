@@ -1,5 +1,6 @@
-package com.exaple.kafka;
+package com.exaple.kafka.producer;
 
+import com.exaple.kafka.UtilsConfigKafka;
 import org.apache.kafka.clients.producer.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,7 +14,7 @@ public class ProducerWithCallback {
     public static void main(String[] args) {
 
         //create Producer properties
-        Properties properties = UtilsConfig.getPropertiesConfigurationKafka();
+        Properties properties = UtilsConfigKafka.getPropertiesConfigurationProducer();
 
         //create the producer
         KafkaProducer<String, String> producer = new KafkaProducer<>(properties);
@@ -30,7 +31,7 @@ public class ProducerWithCallback {
     private static void sendMessage(KafkaProducer<String, String> producer, String message) {
         //create a producer record
         ProducerRecord<String, String> record =
-                new ProducerRecord<>("first_topic", message);
+                new ProducerRecord<>(UtilsConfigKafka.NAME_TOPIC, message);
 
         //send data - asynchronous
         producer.send(record, (recordMetadata, exception) -> {

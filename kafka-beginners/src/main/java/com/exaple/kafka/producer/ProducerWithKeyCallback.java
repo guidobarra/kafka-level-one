@@ -1,5 +1,6 @@
-package com.exaple.kafka;
+package com.exaple.kafka.producer;
 
+import com.exaple.kafka.UtilsConfigKafka;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.slf4j.Logger;
@@ -15,7 +16,7 @@ public class ProducerWithKeyCallback {
     public static void main(String[] args) throws ExecutionException, InterruptedException {
 
         //create Producer properties
-        Properties properties = UtilsConfig.getPropertiesConfigurationKafka();
+        Properties properties = UtilsConfigKafka.getPropertiesConfigurationProducer();
 
         //create the producer
         KafkaProducer<String, String> producer = new KafkaProducer<>(properties);
@@ -48,7 +49,7 @@ public class ProducerWithKeyCallback {
     private static void sendMessage(KafkaProducer<String, String> producer, String message, String key) throws ExecutionException, InterruptedException {
         //create a producer record
         ProducerRecord<String, String> record =
-                new ProducerRecord<>("first_topic", key, message);
+                new ProducerRecord<>(UtilsConfigKafka.NAME_TOPIC, key, message);
 
         //send data - asynchronous
         producer.send(record, (recordMetadata, exception) -> {

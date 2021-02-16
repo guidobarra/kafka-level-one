@@ -51,7 +51,7 @@ public class ProducerWithKeyCallback {
         ProducerRecord<String, String> record =
                 new ProducerRecord<>(UtilsConfigKafka.NAME_TOPIC, key, message);
 
-        //send data - asynchronous
+        //send data
         producer.send(record, (recordMetadata, exception) -> {
             //executes every time a record is successfully sent or an exception is thrown
             if (exception == null) {

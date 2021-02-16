@@ -1,0 +1,141 @@
+Teoria de Kafka
+
+TOPICS, PARTITIONS AND OFFSETS
+
+
+		|  particion 0    |0|1|2|3|4|5|6|7|8|9|10|11|12| --> write
+TOPIC   |  particion 1    |0|1|2|3|4|5|6|7|8|            --> write
+        |  particion 2    |0|1|2|3|4|5|6|7|8|9|10|       --> write
+
+Topics: es un particular forma de transmision de data
+	* Similar a las tablas en las base de datos (sin todas las limitaciones), los registros son las tereas/procesos que le van llegando a ese topic. Cada topic se indentidica por el nombre que tiene al momento de la creacion.
+	*) Puedes tener mas de un topic
+	*) un topic es indentificado por su nombre
+Topics son dividos en particiones
+	*) Las particiones comienzan desde el 0 hasta n 
+	*) Cada particion se ordenara
+	*) Cada mensaje dentro de una partición obtiene una identificación incremental, llamada compensación/offset
+	*) Offset solo tiene un significado para una partición específica
+	*) El orden va estar garantizado solo dentro de cada particion (no a través de particiones)
+	*) La informacion/data en kafka, se guarda por un tiempo limitado (default una semana)
+	*) Una vez que los datos/informacion se escriben tambien en una particion, no se puede modificar (inmutabilidad)
+	   Entonces si escribo el offset 6 de la particion 1, nunca puedo actualizarlo, cambiarlo
+	*) Los datos se asignan aleatoriamente a una partición a menos que se proporcione una clave (más sobre esto más adelante)
+
+
+BROKERS
+
+Un Kafka cluster esta compuesto por multiples brokers (servers)
+Cada broker es indentificado con su ID (integer)
+Cada broker contendra solo ciertas particiones de un topic
+Después de conectarse a cualquier bróker (llamado bróker bootstrap), estará conectado a todo el clúster
+Un buen numero para comenzar es 3 brokers, pero algunas companias llegan a tener 100 brokers
+
+
+TOPIC REPLICATION FACTOR
+Cuando trabajamos con big data y un instancia se cae necesitamos una replicacion de la instancia/topic
+Topics deberan tener un factor de replicacion mayor a 1, usualmente entre 2 y 3
+La replicacion nos asegura que la informacion no se perdara si se cae un broker, (por esto es tolerante a fallos)
+
+Concept of leader for a partition
+En algun momento, solo un broker puede ser líder para una partición determinada
+Solo ese líder puede recibir y entregar datos para una partición
+Los otros brokers sincronizarán los datos
+Por lo tanto, cada partición tiene un líder y varios ISR (réplica sincronizada)
+
+
+PRODUCERS:
+
+Como podemos obtener los datos en kafka?
+Los productores escribiran los datos en los topics (que esta hecho de particiones)
+Los productores automaticamente conocen a que broker y la particion escribir, nosotros no tenemos que especificar eso. Simplemente se conecta a kafka y luego los productores automaticamente sabe a que broker y partcion tinee que escribir
+En caso de que falle un broker, los productores se recuperaran automaticamente. (esta bien programado, no hay que implementar esa funcion, ya esta hecho)
+La carga esta balanceada debido a los broker y los numeros de particiones
+Los datos se envian por turno al broker 1 2 y 3 repitiendose la secuencia, entonces al enviar datos a kafka hay un equilibro de carga (balanceo de carga)
+
+COMO EL PRODUCERS PUEDE ESCRIBIR?
+El productores pueden elegir recibir acknowledgment/confirmacion de la data escribida
+	acks=0 El productor no esperara la confirmacion (posible perdida de data, capaz se envie el dato a un broker que se cayo)
+	acks=1 El productor esperar a que el lider confirme, se envia el dato a un broker y particion, y envia la confirmacion (limite de data perida )
+	acks=all: Envia todos los lideres, se envia el dato al broker y partion, y todas las replicas. El lider y las replicas, obtiene el dato. (No hay perdida de dato)
+
+PRODUCERS: MESSAGE KEYS
+Los productores pueden elegir enviar una clave con el mensaje (String, number, etc)
+Si clave no se envia, key=null, la data es enviada por turnos (broker 1, luego el 2, luego el 3..)
+Si se envia una clave, entonces todos los mensajes iran a la misma particion
+Básicamente, se envía una clave si necesita un pedido de mensajes ordenados para un campo específico (por ejemplo: truck_id)
+
+Muy importante: solo necesita conectarse a un corredor (cualquier corredor) y solo proporcionar el nombre del tema al que desea escribir. 
+¡Kafka Clients enviará sus datos a los corredores y particiones adecuados para usted!
+
+
+CONSUMERS:
+Los consumidores leen los datos de los topic (indentificado por name)
+Los consumidores conocen cual broker tiene que leer automaticamente ya esta programado por usted
+En caso de fallas del broker, los consumidores sabran como recuperarse, esto ya esta hecho, no se tiene que implementar
+Los datos son leidos en orden dentro de cada partition, osea que si leo la partition 0 del broker 100 que tiene el topic A, voy a leer el offset 0, despues el 1..... 
+Un consumidor puede ser una App java, o trankilamente otro lenguaje
+
+Muy importante: solo necesita conectarse a un corredor (cualquier corredor) y proporcionar el nombre del tema del que desea leer. 
+¡Kafka enrutará sus llamadas a los corredores y particiones adecuados para usted!
+
+CONSUMER GROUPS:
+Los consumidores leeran la data en grupos
+Cada consumidor dentro de un grupo, leera directamente desde las particiones exclucivas
+Si tiene mas consumidores que particiones, algunos consumidores estaran inactivos
+
+
+Dos consumidores que tienen el mismo group.id (ID de grupo de consumidores) leerán desde particiones mutuamente excluyentes TRUE
+
+Cant Consumidores <= Cant Particiones
+
+
+CONSUMERS OFFSETS
+kafka almacena los offsets en los que un grupo de consumidores ha estado leyendo, se lo puede pensar como un punto de verificacion o marcador para cada offset
+Los offset marcadas/confirmadas en vivo en kafka topic se los llama con __consumer_offsets
+Cuando un consumidor en un grupo ha procesado datos recibidos de Kafka, debería estar comprometiendo/confirmar los offsets
+Si un consumidor muere, podrá volver a leer desde donde lo dejó gracias a las confirmacion del consumidor offsets
+
+Un consumidor esta consumiendo la particion 2 y va por el offset 3, el siguiente a consumir es el offset 4, pero el consumidor muere/falla como los offset 1, 2, 3 tiene una marca,
+cuando el consumidor se levante empesara a comsumir donde lo dejo la ultima vez, en este caso consumira el offset 4
+EXAMPLE               |
+PARTICION 2    |1|2|3|4|5|6|7|8|                                      consumer from
+								      Consumer Group
+
+DELIVERY SEMANTICS FOR CONSUMERS
+Los consumidores elijen cuando confirmar los offsets
+Hay 3 semanticas de entragas:
+	Como mucho una vez: Los offsets son confirmados tan pronto como se recibe el mansaje
+			    si el proceso falla el mansaje se pierde (no es el preferido al elegir)
+	Al menos una vez: Los offsets son confirmados despues que sus mensajes hayan sido procesado, 
+			  si el proceso falla el mensaje sera leido otra vez (usualmente elegido)
+			  Esto puede resultar en duplicacion de procesos de mensaje. Asegurece de que sus procesos sean IDEMPOTENTES (al ejecutar otra vez el proceso de mensaje, no impactara en tu sistema)
+	Exactamente una vez: (Es el santo crial, solo es posible de kafka a kafka con los streams)
+			     Se puede lograr solo para kafka => Kafak flujos de trabajo usando kafka streams API
+			     Para kafka => Sistemas externos flujos de trabajos, usando IDEMPOTENCIA. Ejemplo desde kafka a una base de datos, no tener registro dublicados, por esto tienes que usar un consumidor idempotente
+			     USA CONSUMIDORES IDENPOTENTES, lo que asegura que no haya duplicados o alteraciones en el sistema
+
+KAFKA BROKER DISCOVERY
+Cada broker de kafka es tambien llamado "bootstrap server" servidor de arranque
+Esto significa que tu solo necesitas conectarte a un broker y estarás conectado a todo el clúster
+Cada broker conoce todos los otros brokers, tipic and partitions (metadata)
+
+ZOOKEEPER
+Es el que mantiene unidos a los brokers, Zookeeper es el gestionador/administrador de los brokers (mantener un lista de ellos)
+Zookeeper nos ayuda a realizar elecciones de lideres para particiones
+Zookeeper envia notificaciones a Kafka en caso de cambios (nuevo topic, cuando un broker muere, cuando aparece un broker, eliminacion de topic)
+Kafka no puede trabajar sin Zookeeper
+Zookeeper por diseño, opera con un numero de servidores impares (3, 5, 7), una regla, es asi como funciona zookeeper no se puede hacer nada al respecto
+Zookeeper tiene un lider (encargarse de escribir) y el resto de los servidores son seguidores (encargadores de lectura)
+Zookeeper no guarda el offset de los consumidores en la versiones superiores de kafka >v0.10
+Los productores y consumidores, no escriben a zookeeper
+
+KAFKA GUARANTEES
+Los mensajes son anexados a un particion de un topic en el orden en el que se envian
+Los consumidores leeran los mensajes en el orden en el que esten almacenados en la particion-topic
+Cuando tiene una factor de replicacion N, los consumidores y productores pueden tolerar hasta N-1 brokers que se caigan
+Por esto un factor de replicacion de 3 es buena idea:
+	permite que un broker puede ser retirado por mantenimiento y otro broker puede retirarse inesperadamente (factor de 3 y se pueden caer 2 brokers)
+El numero de particiones permanece constante para el topic ( no hay particiones nuevas), debido a esto las misma clave siempre ira a la misma particion (porque para hacer el hash tiene encuenta el numero de particiones, NO SE PUEDE CAMBIAR EL NUMERO DE PARTICIONES)
+ 
+

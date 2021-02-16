@@ -1,0 +1,48 @@
+Apache Kafka
+
+PROBLEMATICA
+Cuando tenemos dos sistemas (app) que se comunican entre si, no presentan complicacion. Pero si el sistemas crece y tiene muchas apps
+que se cominican entre si, esto puede generar conflictos sobre todo en integracion. Por ejemplo si tenemos 4 sources systems (exponen 
+datos para consumir) y 6 target systems (consumen los datos de los sources system), uno puede llegar a tener o necesitar escribir 24 
+integracion
+
+Cada integracion viene con muchas dificultades:
+Protocol: Como la Data/informacion es transportada (TCP, HTTP, REST, FTP, JDBC...)
+Data Format: Como la Data/informacion es analizada (Binario, CSV, JSON, Avro..)
+Data schema and evolution: cómo se configuran los datos y cómo pueden cambiar
+
+Cada source system tendra un incremento de carga de conecciones
+
+Estos inconvenientes/problematica los resuelve Apache Kafka, te permite desacoplar tus flujos de datos y tus sistemas.
+Entonces ahora tus sources systems tendran sus datos en Apache Kafka, mientras que tus target systems obtendran sus datos directamente de 
+Apache Kafka
+
+WHY APACHE Kafka?
+*)creado por Linkedln, ahora open source project principalmente mantenido por CONFLUENT
+*)Es una Arquitectura distrubuida, Resistente y tolerante a fallos
+*)Escaleble horizontalmente: 
+		Hay cluster de Kafka con mas de 100 brokers
+		Puede escalar mas de un millon de mensajes por segundos (comprobado)
+*)Alta performance (lantecy menos que 10ms) - real time
+*)Usado por mas de 2000 empresas, el 35% of the Fortune 500, example Linkedln Airbnb, Netflix
+
+Apache kafka: casos de uso
+Sistema de mensajeria
+Seguimiento de actividades
+Recopilar metricas de diferentes ubicaciones que comiencen como muestras o dispositivo IoT
+Reunir Logs de las applications
+Stream procesos(con Kafka Streams API or Spark for example)
+Desacoplamiento de las dependencia del sistema, lo que reduce la carga en sus bases de datos y sus sistemas desacoplandolos
+Integraciones de BIG DATA con Spark, Flink, Starm, Hadoop, y muchas otras tecnologias
+
+EXEMPLOS REALES
+NETFLIX esta utilizando KAfka para aplicar recomendaciones en tiempo real, mientras miras programas de television.
+UBER usa Kafka para reunir/recopilar datos de usuarios, taxis y viajes en tiempo real para computar y pronosticar la
+demanda, y calcula el precio de la oleada todopoderoso en tiempo real
+Linkedln usa Kafka para evitar el spam, recopilar las intereccion de los usuarios y hacer mejores recomendaciones en tiempo real
+
+RECORDA QUE KAFKA SOLO SE USA COMO MECANISMO DE TRANSPORTE
+La gente necesita, todavia escribira sus aplicaciones o aplicaciones web para hcer que las cosas funcionen, pero Kafka es realmente
+bueno haciendo que sus datos se muevan realmente rapido a escala, en su empresa
+
+

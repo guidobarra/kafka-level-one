@@ -23,3 +23,5 @@
 hs_err_pid*
 /kafka-beginners/.idea
 /kafka-beginners/kafka-beginners.iml
+/kafka-elasticsearch/.idea
+/kafka-elasticsearch/kafka-elasticsearch.iml

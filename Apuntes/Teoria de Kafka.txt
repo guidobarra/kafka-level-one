@@ -139,3 +139,128 @@ Por esto un factor de replicacion de 3 es buena idea:
 El numero de particiones permanece constante para el topic ( no hay particiones nuevas), debido a esto las misma clave siempre ira a la misma particion (porque para hacer el hash tiene encuenta el numero de particiones, NO SE PUEDE CAMBIAR EL NUMERO DE PARTICIONES)
  
 
+
+Idempotent Producer:
+Problema: el producer puede introducir mensajes duplicados in kafka debido a problemas/errores de la red 
+
+Camino feliz: El producer le envia un mensaje/request a kafka, kafka recibe el request, lo confirma y envia el ACK al producer, el producer recibe el ACK de kafka
+
+Camino error: El producer le envia un mensaje/request a kafka, kafka recibe el request, lo confirma y envia el ACK al producer, pero el producer NO recibe el ACK de kafka debido a problemas de red. Entonces
+el producer envia otra vez el mensaje generando la dublicidad.
+
+
+En kafka >= 0.11 se puede definir "idempotent producer" el cual no producira duplicados debido a errores de red.
+
+Camino error: El producer le envia un mensaje/request a kafka, ahora el request tiene un id para poder 
+identificarlo, kafka recibe el request, lo confirma y envia el ACK al producer, pero el producer NO recibe 
+el ACK de kafka debido a problemas de red. Entonces el producer envia otra vez el mensaje, el cual va a 
+tener el mismo id de request que el anterior xq es el mismo mensaje/request, kafka recibe el request y 
+verifica con el id del request no sea uno existente/dublicado con esto generamos la idempotecia, en el 
+caso de que no exista el id del request kafka lo confirma/procesa el dato y envia el ACK al producer. 
+Para el caso de que exista el id del request (el caso de duplicacion de mensajes) kafka NO confirma/
+procesa el  dato y SI envia el ACK al producer
+
+El mecanismo de idempotencia no se necesita implementar, kafka lo tiene 
+
+los producer idempotent son una excelente manera para garantizar una pipeline estable y segura 
+
+Cuando use un producer idempotent tendra 
+retries = Integer.MAX_VALUE(2^31 -1 = 2147483647) (reintentos) se puede modificarlo
+max.in.flight.requests=1 (kafka == 0.11)
+max.in.flight.requests=5 (kafka >= 1.0 - alto rendimiento y siguir ordenando) info KAFKA-5494
+acks=all
+
+Estas configuraciones se aplican automáticamente después de que su productor haya comenzado, si no las configura manualmente, (las puede configurar manualmente)
+
+Just set:
+producerProps.put("enable.idempotence", true);
+
+
+Kafka < 0.11
+
+acks=all (nivel producer)
+	Garantiza que los datos se repliquen correctamente antes de recibir una confirmación
+	Garantizara que todas las replicas tendran que acusar recibo/confirmar escritura antes de recibir un 
+	reconocimiento de su producer.
+min.insync.replicas=2 (nivel broker/topic)
+	Garantiza que dos corredores en ISR tengan al menos los datos después de un ack
+	Garantizara que al menos dos brokers en ISR tengan los datos antes de recibir un reconocimento
+retries=MAX_INT (nivel producer)
+	Garantiza que los errores transitorios se reintenten indefinidamente
+max.in.flight.requests.per.connection=1 (nivel producer)
+	Garantiza un orden estricto
+	Asegura que solo se intente una solicitud en cualquier momento, evitando el reordenamiento de mensajes en caso de reintentos
+
+Kafka >= 0.11
+
+enable.idempotence=true (nivel producer) + min.insync.replicas=2 (nivel broker/topic)
+Estas configuraciones implicaran 
+	acks=all
+	retries=MAX_INT
+	max.in.flight.requests.per.connection=1 if kafka == 0.11 or 
+	max.in.flight.requests.per.connection=5 if kafka >= 0.10
+
+
+Ejecutar un "productor seguro" puede afectar el rendimiento y la latencia, 
+siempre pruebe para su caso de uso
+
+MESSAGE COMPRESSION
+
+Producer usualmente envia data basados en texto, por ejemplo con JSON, este JSON es muy pesado
+En este caso, es muy importante aplicar o comprimir el mensaje en el producer
+
+La compresion es habilitada a nivel producer y no requiere algun cambio de configuracion en el broker
+o en el consumer
+Tipos de compresion:
+	compression.type= "none"(default), "gzip", "lz4", "snappy"
+
+La compresion es mas efectiva si tenemos un gran lote/conjunto de mensajes que se van a enviar a Kafka
+Al comprimir los mensajes, se reduce el tamaño del paquete que se envia, disminuyendo la latencia 
+debido a que el paquete se envia a las replicas mas rapido, utilizando menos ancho de banda
+
+Ventajas de la compresion:
+	tamaño de request del producer mucho más pequeño (relación de compresión de hasta 4x)
+	Rapida transferencia de data atraves de la red, menor latency
+	Mejor rendimiento
+	Mejor utilizacion de disco en Kafka (el almacenamiento de los mensaje en disco es pequeño)
+Desventajas:
+	Producers deben comprometer algunos ciclo de CPU para la compresion
+	Consumers deben comprometer algunos ciclo de CPU para la descompresion
+En general:
+	Considere utilizar/probar snappy or lz4 para un optimo speed/compression 
+
+Recomendaciones
+	Use siempre compresion en produccion y especificamente si tienes/queire una alto rendimiento
+	Considere modificar linger.ms y batch.size para tener lotes más grandes y, por lo tanto, más 
+	compresión y mayor rendimiento
+
+linger.ms: number, espera un tiempo para que se acumulen los mensajes/request, haciendo esto tenemos un 
+conjuto de request que se van a cumulando y despues se lo comprimira y se lo enviara a kafka.
+
+batch.size: 16KB (default), 32KB or 64KB, es el numero maximo de bytes que sera incluido en un lote
+Cualquier mensaje que sea más grande que el tamaño del lote no se enviará por lotes.
+Se asigna un lote por partición, así que asegúrese de no configurarlo en un número demasiado alto, 
+de lo contrario, se ejecutará el desperdicio de memoria
+
+KAFKA USA EL ALGORITMO MURMUR2 para realizar el hashing 
+
+Max.block.ms y buffer.memory
+si el producer produce más rápido de lo que puede tomar broker, los registros se almacenarán en memoria 
+intermedia
+buffer.memory = 32MB
+
+
+Ese búfer se llenará con el tiempo y se volverá a llenar cuando aumente el rendimiento del broker
+
+si el buffer esta lleno (32MB), significa que el broker ha estado inactivo durante bastante tiempo o
+que sus producers estan produciendo muy rapido entonces el metodo send() comenzara a bloquearse
+
+max.block.ms=60000 el tiempo que el .send() bloqueará hasta lanzar una excepción. Las excepciones se 
+lanzan básicamente cuando:
+	El producer ha llenado por completo el buffer
+	El broker no acepta ningun dato nuevo
+	Has transcurrido 60 segundos
+
+Si marca esa exception, significa basicamente que sus broker estan caidos o sobrecargados y no puede 
+responder a las solicitudes, y sus producers tambien bajaran durante un tiempo, hasta que se recupere 
+los brokers

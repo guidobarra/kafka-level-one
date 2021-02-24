@@ -1,5 +1,6 @@
 package com.kafka.elasticsearch.consumer;
 
+import com.google.gson.JsonParser;
 import org.apache.http.HttpHost;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
@@ -30,6 +31,8 @@ public class ElasticSearchConsumerWithKafka {
 
     private final static Logger LOG = LoggerFactory.getLogger(ElasticSearchConsumerWithKafka.class);
 
+    private static final JsonParser jsonParser = new JsonParser();
+
     public static void main(String[] args) throws IOException, InterruptedException {
         RestHighLevelClient client = createClient();
 
@@ -39,12 +42,23 @@ public class ElasticSearchConsumerWithKafka {
             ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100L));
 
             for (ConsumerRecord<String, String> record: records) {
+
+                // two strategies
+                // kafka generic ID
+                //String id = record.topic() + "_"  + record.partition() + "_"  + record.offset();
+
+                // twitter feed specific id, is generate to elasticsearch
+                String id = extractIdFromTweet(record.value());
+
                 //where we insert data into ElasticSearch
-                IndexRequest indexRequest = new IndexRequest("twitter", "tweets")
-                        .source(record.value(), XContentType.JSON);
+                IndexRequest indexRequest = new IndexRequest("twitter")
+                                                .type("tweets")
+                                                .id(id) /*this is to make our consumer idempotent*/
+                                                .source(record.value(), XContentType.JSON);
 
                 IndexResponse indexResponse = client.index(indexRequest, RequestOptions.DEFAULT);
                 LOG.info("response id: {}", indexResponse.getId());
+                LOG.info("response id: {}", id);
 
                 Thread.sleep(1000);
             }
@@ -78,7 +92,7 @@ public class ElasticSearchConsumerWithKafka {
     public static KafkaConsumer<String, String> createConsumer(String topic) {
 
         final String bootstrapServer = "localhost:9092";
-        final String groupId = "kafka--demo-elasticsearch";
+        final String groupId = "kafka-demo-elasticsearch";
 
         //create Producer consumer
         Properties properties = new Properties();
@@ -92,6 +106,15 @@ public class ElasticSearchConsumerWithKafka {
         consumer.subscribe(Arrays.asList(topic));
 
         return consumer;
+    }
+
+    private static String extractIdFromTweet(String value) {
+        // gson library
+        return jsonParser
+                .parse(value)
+                .getAsJsonObject()
+                .get("id_str")
+                .getAsString();
     }
 
 }

@@ -76,7 +76,7 @@ public class TwitterProducerSafeCompression {
             if (msg != null) {
                 LOG.info(msg);
                 //send msj to kafka
-                producerKafka.send(new ProducerRecord<>("topic_twitter", null, msg), (r, e) -> {
+                producerKafka.send(new ProducerRecord<>("twitter_tweets", null, msg), (r, e) -> {
                     if (e != null) {
                         LOG.error("something bad", e);
                     }
@@ -93,7 +93,7 @@ public class TwitterProducerSafeCompression {
         StatusesFilterEndpoint hosebirdEndpoint = new StatusesFilterEndpoint();
         // Optional: set up some followings and track terms
         //List<Long> followings = Lists.newArrayList(1234L, 566788L);
-        List<String> terms = Lists.newArrayList("bitcoin", "usa", "politics", "sport", "soccer");
+        List<String> terms = Lists.newArrayList("java");
         //hosebirdEndpoint.followings(followings);
         hosebirdEndpoint.trackTerms(terms);
 

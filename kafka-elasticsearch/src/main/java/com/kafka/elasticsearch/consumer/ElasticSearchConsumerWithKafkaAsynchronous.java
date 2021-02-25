@@ -11,6 +11,8 @@ import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
+import org.elasticsearch.action.bulk.BulkRequest;
+import org.elasticsearch.action.bulk.BulkResponse;
 import org.elasticsearch.action.index.IndexRequest;
 import org.elasticsearch.action.index.IndexResponse;
 import org.elasticsearch.client.RequestOptions;
@@ -43,33 +45,40 @@ public class ElasticSearchConsumerWithKafkaAsynchronous {
             //send teen records/messages due to max.poll.records=10
             ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(100L));
 
-            LOG.info("Received " + records.count() + " records");
+            Integer countRecords = records.count();
+            LOG.info("Received " + countRecords + " records");
+
+            //for processes for batching
+            BulkRequest bulkRequest = new BulkRequest();
+
             for (ConsumerRecord<String, String> record: records) {
+                try {
+                    // two strategies
+                    // kafka generic ID
+                    //String id = record.topic() + "_"  + record.partition() + "_"  + record.offset();
 
-                // two strategies
-                // kafka generic ID
-                //String id = record.topic() + "_"  + record.partition() + "_"  + record.offset();
+                    // twitter feed specific id, is generate to elasticsearch
+                    String id = extractIdFromTweet(record.value());
 
-                // twitter feed specific id, is generate to elasticsearch
-                String id = extractIdFromTweet(record.value());
-
-                //where we insert data into ElasticSearch
-                IndexRequest indexRequest = new IndexRequest("twitter")
-                                                .type("tweets")
-                                                .id(id) /*this is to make our consumer idempotent*/
-                                                .source(record.value(), XContentType.JSON);
-
-                IndexResponse indexResponse = client.index(indexRequest, RequestOptions.DEFAULT);
-                LOG.info("response id: {}", indexResponse.getId());
-                LOG.info("response id: {}", id);
-
-                Thread.sleep(10);
+                    //where we insert data into ElasticSearch
+                    IndexRequest indexRequest = new IndexRequest("twitter")
+                                                    .type("tweets")
+                                                    .id(id) /*this is to make our consumer idempotent*/
+                                                    .source(record.value(), XContentType.JSON);
+                    bulkRequest.add(indexRequest);
+                } catch (NullPointerException e) {
+                    LOG.warn("skipping bad data: " + record.value());
+                }
             }
 
-            LOG.info("Committing offsets....");
-            consumer.commitAsync();
-            LOG.info("Offsets have been committed");
-            Thread.sleep(1000);
+            if (countRecords>0) {
+                BulkResponse bulkItemResponses = client.bulk(bulkRequest, RequestOptions.DEFAULT);
+                LOG.info("Committing offsets....");
+                consumer.commitAsync();
+                LOG.info("Offsets have been committed");
+                Thread.sleep(1000);
+            }
+
         }
 
         //client.close();
@@ -110,7 +119,7 @@ public class ElasticSearchConsumerWithKafkaAsynchronous {
         properties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, groupId);
         properties.setProperty(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         properties.setProperty(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "false");//manually commit offsets and Asynchronous
-        properties.setProperty(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, "10");//package teen messages send
+        properties.setProperty(ConsumerConfig.MAX_POLL_RECORDS_CONFIG, "100");//package teen messages send
 
         KafkaConsumer<String, String> consumer = new KafkaConsumer<>(properties);
         consumer.subscribe(Arrays.asList(topic));

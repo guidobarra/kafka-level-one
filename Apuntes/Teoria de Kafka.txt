@@ -264,3 +264,127 @@ lanzan básicamente cuando:
 Si marca esa exception, significa basicamente que sus broker estan caidos o sobrecargados y no puede 
 responder a las solicitudes, y sus producers tambien bajaran durante un tiempo, hasta que se recupere 
 los brokers
+
+
+DELIVERY SEMANTICS
+
+como máximo una vez: Los offsets se confirman tan pronto como se recibe el lote de mensajes. 
+					 Si el procesamiento sale mal, el mensaje se perderá (no se volverá a leer)
+al menos una vez: Los offsets se confirman después de que se procesa el mensaje. Si el 
+				  procesamiento sale mal, el mensaje se leerá nuevamente. Esto puede resultar en 
+				  un procesamiento duplicado de mensajes. Asegúrese de que su procesamiento sea
+				  idempotente (procesar nuevamente los mensajes no afectará sus sistemas)
+exactamente una vez: Se puede lograr para kafka => flujos de trabajo de Kafka utilizando la 
+					 API de Kafka Streams. Para Kafka => Sink workflows, use un consumidor idempotente
+
+CONSUMER POLL BEHAVIOR
+
+
+#)Los consumidores de Kafka tienen un modelo de "poll", esto significa que pediran datos a kafka, mientras que 
+muchos otros buses de mensajería en las empresas tienen un modelo de "empuje", lo que significa que el servidor
+envia datos al consumidor y el consumidor espera
+
+#)esto permite a los consumidores controlar en qué parte del registro quieren consumir, qué tan rápido y 
+les da la capacidad de reproducir eventos
+
+								 --------------
+								|	CONSUMER   |
+								 --------------
+								    |		^
+								    |		|
+		 .poll(Duration timeout) (1)|		|(2) Return data immediately if possible 
+								    |		|    Return empty after "timeout"
+								    v		|
+							 -----------------------
+							|						|	
+							|						|	
+							|		BROKER   		|	
+							|						|
+							 -----------------------
+
+Fetch.min.bytes (default 1):
+#)Controla la cantidad de datos que desea extraer al menos en cada solicitud
+#)Aumentar el numero genera un mejor rendimiento porque dice que no quiero que kafka me de nada a menos 
+que tenga quizas 100 kilobeytes.
+#)Ayuda a mejorar el rendimiento y reducir el número de solicitudes
+#)Costo de la latencia
+
+Max.poll.records (default 500)
+#)Controla cuantos mensajes recibe en cada request
+#)Debe aumentarlo si los mensajes son muy pequeños y tiene mucha memoria ram disponible y 7
+si desea consumir muchos mensajes al mismo tiempo
+#)Es bueno monitorear cuántos registros se sondean por solicitud
+
+Max.partitions.fetch.bytes (default 1MB) 
+#) Maxima data alcansado por el broker por particion
+#) Si tu lees de 100 particiones, tu necesitaras mucha memoria RAM
+
+Fetch.max.bytes (default 50MB):
+#) Máximo de datos devueltos para cada solicitud/request de recuperación (cubre varias particiones)
+#) El consumer cuando consumen realizara multiples funciones en paralelo
+
+-------------------------------------------------------------------------------------------
+cambie esta configuración solo si su consumidor ya alcanza el máximo de rendimiento!!!!
+-------------------------------------------------------------------------------------------
+
+CONSUMER OFFSET COMMITS STRATIGIES
+
+Existen dos patrones mas comunes para confirmar los offset en un consumer application   (HAY MAS DE 2 FORMAS)
+
+1) (EASY) enable.auto.commit = true (default) (El que se comenso a usar al principio del curso)
+Realiza procesamiento sincronico de lotes/batches
+Con el auto.commit, los offsets sera confirmados automaticamente en intervalos regulares (auto.commit.interval.ms=5000 default)
+cada vez que se realice un consulta
+
+
+Si no utiliza el procesamiento síncrono, tendrá un comportamiento "como máximo una vez" porque las compensaciones 
+se confirmarán antes de que se procesen sus datos.
+
+2) (MEDIUM) enable.auto.commit = false
+manualmente confirmas los offsets
+Tener control de cuando confirmamos los offsets y cual es la condicion para confirmarlos
+
+
+CONSUMER OFFSET RESET BEHAVIOUR
+El comportamiento del consumidor es utilizar:
+auto.offset.reset=lateest leerá desde el final del registro
+auto.offset.reset=earliest leerá desde el inicio del registro
+auto.offset.reset=none arrojará una excepción si no se encuentra ningún offset
+
+Adicionalmente, los offsets de los consumer puede perderse:
+si un consumer no lee los nuevos datos en un dia (kafka < 2.0)
+si un consumer no lee los nuevos datos en siete dia (kafka => 2.0)
+Esto puede ser controlodo por el broker porperties offset.retention.minutes
+
+
+REPLAYING DATA FOR CONSUMERS
+Para reproducir datos para un grupo de consumidore
+	Tomar todos los consumers de un especifico grupo down/bajado
+	Usar la linea de comando "kafka-consumer-groups" para settear los offsets a lo que quieras
+	Reiniciar consumers
+
+Establecer correctamente un periodo de retencion de la data y  el offset 
+Asegúrese de que el comportamiento de reinicio automático de los offsets y sea el de espera/querer
+Utilizar la capacidad de reproducción en caso de comportamiento inesperado
+
+
+CONTROLLING-CONSUMER-LIVELINESS
+
+CONSUMER HEARTBEAT THREAD
+Session.timeout.ms (default 10 seconds):
+Los latidos (se esta vivo el consumer) se envían periódicamente al corredo
+Si no se envía ningún latido durante ese período, el consumidor se considera muerto
+Ajuste aún más bajo para reequilibrios de consumidores más rápidos
+
+Hearbeat.interval.ms (default 3 seconds)
+Con que frecuencia enviar latidos
+Usualmente enviar 1/3 de session.timeout.ms
+
+Para llevar: este mecanismo se utiliza para detectar que una aplicación de consumidor está inactiva
+
+CONSUMER POLL THEREAD
+max.poll.interval.ms (default 5 minutes):
+Cantidad máxima de tiempo entre dos llamadas .poll () antes de declarar muerto al consumidor
+Esto es perticularmente relevante para Big Data, frameworks como Spark en casos de el procesamiento lleva tiempo
+
+Take-away: este mecanismo se utiliza para detectar un problema de procesamiento de datos con el consumidor

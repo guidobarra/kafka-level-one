@@ -91,6 +91,10 @@ kafka-console-producer --broker-list 127.0.0.1:9092 --topic first_topic --proper
 kafka-console-consumer --bootstrap-server 127.0.0.1:9092 --topic first_topic --from-beginning --property print.key=true --property key.separator=,
 
 
+#RESETEAR LOS OFFSETS, PARA LEER LOS DATOS OTRA VEZ
+kafka-consumer-groups.sh --bootstrap-server kafka:9092 --group kafka-demo-elasticsearch --reset-offsets --execute --to-earliest --topic twitter_tweets
+
+
 
 Conduktor - Kafka GUI
 Kafka no viene con una interfaz de usuario, pero he creado un software llamado Conduktor para ayudarlo a usar Kafka visualmente.

@@ -33,7 +33,7 @@ services:
     kafka-connect-configuration:
         build:
             context: ../
-            dockerfile: ./docker/docker-file-one/Dockerfile
+            dockerfile: ./docker/docker-file-two/Dockerfile
         image: kafka-connect-configuration:v1
         container_name: kafka-connect-twitter
         depends_on:

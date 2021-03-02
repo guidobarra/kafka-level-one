@@ -1,0 +1,47 @@
+version: '3'
+
+networks:
+    demo-network:
+        name: demo-network
+        driver: bridge
+        
+
+services:
+    zookeeper:
+        image: confluentinc/cp-zookeeper:5.0.0
+        ports:
+            - "2181:2181"
+        environment: 
+            ZOOKEEPER_CLIENT_PORT: 2181
+        container_name: zookeeper
+        networks: 
+            - demo-network
+    kafka:
+        image: confluentinc/cp-kafka:5.0.0
+        container_name: kafka
+        depends_on: 
+            - zookeeper
+        ports:
+            - "9092:9092"
+        environment: 
+            KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+            KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+            KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+            KAFKA_ADVERTISED_HOST_NAME: kafka
+        networks: 
+            - demo-network
+    kafka-connect-configuration:
+        build:
+            context: ../
+            dockerfile: ./docker/docker-file-one/Dockerfile
+        image: kafka-connect-configuration:v1
+        container_name: kafka-connect-twitter
+        depends_on:
+            - zookeeper
+            - kafka
+        environment:
+            ZOOKEEPER_HOSTS: "zookeeper:2181"
+            KAFKA_TOPIC_STATUS: "twitter_status_connect"
+            KAFKA_TOPIC_DELETE: "twitter_delete_connect"
+        networks: 
+            - demo-network

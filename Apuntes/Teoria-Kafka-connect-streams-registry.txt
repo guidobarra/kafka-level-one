@@ -1,0 +1,131 @@
+Kafka connect introduction
+
+#) No somos la unica persona en el mundo que ha escrito algo para obtener datos en Twitter
+#) No somos la unica persona en el mundo en enviar datos a ElasticSearch/PorstgreSQL/MongoDB
+#) Durante el proceso de crear los producer/consumer hemos tenido BUGS/ERRORES que lo fuimos solucionando 
+alguien ya paso por esto y seguramento lo hizo mejor.
+
+Kafka Connect trata de volver a usar el codigo y reusar los conectores
+
+Why Kafka Connect and Streams?
+
+Cuatro casos de uso:
+
+(1) Source => Kafka  Producer API			   Hay una fuente/source para Kafka y esa es la API del producer    
+ 
+(2) Kafka => Kafka   Consumer, Producer API    Carga de trabajo de Kafka a Kafka, encadenar una API de consumer y producer
+
+(3) Kafka => Sink    Consumer API 			   Kafka para hundir la carga de trabajo a travez del consumer (ElasticSearch)
+
+(4) Kafka => App	 Consumer API			   Kafka a una aplicacion, es similar a Kafka a un receptor
+
+(1) Para este caso es Kafka Connect Source
+(2) Para este caso es Kafka Streams
+(3) Para este caso es Kafka Connect Sink
+(4) 
+
+Kafka Connect simplifica y mejora el ingreso y la salida de datos de Kafka
+Simplificara la transformacion de datos dentro de kafka sin que dependa de bibliotecas externas
+
+Todos los programadores quieren/necesitan importar data de alguna fuente/source:
+Databases, JDBC, Couchbase, GoldenGate, SAP HANA, Blockchein, Cassandra, DynamoDB, FTP, IOT, MongoDB, MQTT,
+Rethink, SalesForce, Solr, SQS, Twitter ETC
+
+Todos los programadores quieren/necesitan almacenar la data en algun sinks:
+S3, ElasticSearch, HDFS, JDBC, SAP HANA, DocumentDB, Cassandra, DynamoDB, Hbase, MongoDB, Redis, Solr, Splunk, Twitter
+
+Es dificil programar para lograr tolerancia a fallas, idempotencia, distribución, ordenamiento. Por eso
+otros programadores que son expertos de Kafka abordaron este desafio, por eso usamos Kafka Connect
+
+Kafka connect -High level
+Tenemos los conectores de origen para obtener datos de las fuentes/source
+Tenemos los conectores de sumidero/sink para almacenar/publicar datos
+Para los desarrolladores sin experiencia sera muy facil de interactuar/configurar
+parte de tu ETL pipeline
+Kafka connect escala muy bien, escala desde pipeline pequeñas hasta grandes
+Codigo reutilisable
+
+
+
+KAFKA STREAMS INTRODUCTION
+
+Uno puede quieres hacer lo siguiente desde el topic twitter_tweets:
+Filtrar los tweets que tengan mas de 10 likes o replicas
+Contar el numero de tweets recibidos por cada Hashtag cada minuto
+
+O combinar los dos y tener una idea de los temas de moda y el hashtag en tiempo real
+
+Con kafka producer y Consumer es muy dificil hacer esto, porque es muy a bajo nivel,
+no amigable para el desarrolador
+
+Why Kafka Streams?
+
+#)Es una biblioteca de Kafka hecha en JAVA
+#)Facil procesamiento y transformacion de data en Kafka
+	Estandar java Application
+	No necesita crear un cluster separado
+	Altamente escalable, elastico y tolerante a fallos
+	Exactamente una capacidad
+	Es un registro a las vez, por lo que no hay micro-lotes (NO BATCHING), como quizas Spark lo haria
+	Funciona con cualquier tamaño de aplicacion
+
+SCHEMA REGISTRY
+
+Kafka toma bytes como entrada y los publica como salida
+No hay verificacion de datos
+
+Que pasa si el producer envia data incorrecta?
+Que pasa si un campo cambia de nombre?
+Que pasa si el formato de datos cambia de un dia a otro?
+
+Si sucede algo de esto el consumer se rompe, entonces 
+necesitamos que los datos sean autodescriptables,
+necesitamos poder evolucionar los datos sin romper los comsumers
+por lo que necesitamos un esquema y un registro de esquema
+
+Que pasa si kafka brokers verifica los mensajes recibidos?
+porque kafka no puede hacer esto?
+Si kafka realiza estas tareas se romperia lo que hace tan bueno a kafka
+	Kafka no parsea/lee/examina/ los datos (no consume CPU)
+	Kafka simplemente recibe bytes y envia bytes
+	Kafka toma bytes como entrada sin siquiera cargarlos en la memoria (eso se llama copia cero)
+	Alta optimizacion
+	Kafka distribute los bytes
+	En lo que respecta a kafka, ni siquiera sabe si sus datos son un número entero, una cadena, etc
+
+El schema registry tiene que se un componente separado
+Los producers y concumer necesitan poder hablar con el schema registry
+El schema registry debe poder decirle a los producer y consumer, que lo que estan enviando es informacion incorrecta
+Se debe acordar un formato de datos
+	compatible con el schemas
+	poder evolucionar 
+	ser liviano
+
+Todo esto ya existe Confluent Schema Registry
+Y Apache Avro como los formatos de datos
+
+Almacene y recupere esquemas para Producers/Consumers
+Disminuir el tamaño del paquete de datos enviados a kafka
+Hacer cumplir Backward/Forward/Full compatibility on topics
+
+Utilizando schema registry tiene muchos beneficios, PERO esto implica que necesita:
+	Configurarlo Bien
+	Debe asegurarse que su registro de esquema este habilidato/disponible
+	Debe cambiar su codigo de producers/consumers
+	Ya no puede usar JSON como formato, en su lugar se usa Apache Avro
+	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

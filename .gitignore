@@ -23,3 +23,7 @@
 hs_err_pid*
 /kafka-beginners/.idea
 /kafka-beginners/kafka-beginners.iml
+/kafka-twitter/.idea
+/kafka-twitter/kafka-twitter.iml
+/kafka-streams/.idea
+/kafka-streams/kafka-twitter.iml

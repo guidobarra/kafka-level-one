@@ -1,0 +1,105 @@
+PARTITIONS COUNT, REPLICATION FACTOR
+
+Son dos parametros muy importantes cuando se crea un Topic
+Los dos impactan el rendimiento y durabilidad del sistema en general
+
+PAUTAS PARA CONFIGURARLO
+
+Es mejor obtener/tener los parámetros correctos la primera vez
+	#)Si el numero de particion aumenta durante el ciclo de vida del topic, 
+	romperemos nuestra garantia de pedido de claves (keys ordering guarantees)
+	#)Si el factor de replicacion aumenta durante en ciclo de vidad del topic,
+	pondras mas presion sobre tu cluster, puede conducir a la inestabilidad o 
+	disminucion del rendimiento porque, de repente, sus brokers tienen que hacer mas trabajo
+
+Por estos motivos hay que configurarlo bien la primera vez.
+
+
+PARTITIONS
+Cada particion puede manejar un rendimiento de algunos MB/s (depende la configuracion el cluster de kafka)
+Tener mas particiones implica:
+	Mejor paralelismo y rendimiento
+	Capacidad de ejecutar/tener mas consumers en grupo para escala 
+	Capacidad de aprovechar más corredores si tiene un clúster grande
+	PERO mas eleccciones que zookeeper realizara para usted
+	PERO mas archivos abiertos en kafka
+
+
+GUIA/PAUTAS
+Particion por Topic
+	#)(intuicion) Cluster pequeños que tiene menos que 6 brokers: 2 x cantBrockers
+	#)(intuicion) Cluster Grandes que tiene mas de 12 brokers: 1 x cantBrockers
+	#)Ajuste la cantidad de consumidores que necesita para ejecutar en paralelo al máximo rendimiento
+	#)Ajuste para el rendimiento del productor (aumente si el rendimiento es muy alto o si se proyecta
+	un aumento en los próximos 2 años)
+TESTEAR cada cluster de kafka tendra diferente rendimiento
+NO CREE UN TOPIC CON 1000 partiones
+
+REPLICATION FACTOR (RF)
+Deberia ser como minimo 2, usualmente 3, maximo 4
+Un alto factor replicacion (N):
+	Mejor resiliencia/elasticidad de su sistema (los corredores N - 1 pueden fallar)
+	PERO más replicación (mayor latencia si acks = ALL)
+	PERO más espacio en disco en su sistema (50% más de RF en 3 en lugar de 2)
+
+GUIA/PAUTAS
+Comenzar con un factor de replicacion 3 (debe tener al menos 3 corredores para eso)
+Si el rendimiento de la replicación es un problema, obtenga un mejor agente (COMPU) en lugar de menos RF
+NUNCA TENGA UN RF=1 EN PRODUCCION
+
+CLUSTER
+#)Es bastante aceptado que un broker no debe tener más de 2000 a 4000 particiones (en todos los temas de ese corredor)
+#)Adicionalmente, un kafka cluster puede tener un maximo de 20.000 particiones en todos los prokers 
+#)Si necesita mas particiones en tu cluster, agrega mas brokers
+#)Si necesita mas que 20.000 particiones en tu cluster (¡Tomará tiempo llegar allí!)
+  sigue el modelo de netflix y crea más cluster de kafka)
+#)En general, no necesita un tema con 1000 particiones para lograr un alto rendimiento
+  comiensa con un numero razonable y testea el rendimiento
+
+Los broker tienen valores predeterminados para todos los parámetros de configuración del topic.
+Estos parámetros pueden necesitar valores diferentes a los predeterminados.
+
+Replication Factor
+cant OF Partitions
+Message size
+Compression level
+Log cleanup Policy
+Min Insync Replicas
+Other configurations
+
+PARTTITIONS AND SEGMENTS
+Los topic estan hechos de particiones
+Las particiones estan hechas de segmentos
+En cada segmento hay un archico
+
+Hay un solo segmento activo (es el unico en el que se escriben los datos)
+
+Dos configuracion
+log.segment.bytes: El maximo tamaño de un segmento, default 1GB
+log.segment.ms:El tiempo que esperara kafka antes de confirmar el segmento para cerrarlo si no esta llemo, default 1 semana
+
+
+los segmentos vienen con dos índices
+	un desplazamiento al índice de posición: permite a kafka donde leer y encontrar el mensaje
+	Un timestamp de desplazamineto indice: permite a kafka encontrar mensajes con timestamp	
+	
+Por lo tanto, kafka sabe donde encontrar los datos en tiempo constante y 
+desde donde encuentra los datos comienza a leer en secuencia el resto de los offsets 
+
+
+por qué debería importarme?
+Un pequeño log.segment.bytes ejemplo mejor a 1GB. puede
+	Mas Segmentos por particion
+	Log Compraction pasa más a menudo
+	PERO kafka tiene que mantener más archivos abiertos (ERROR: demasiados archivos abiertos)
+Un pequeño log.segment.ms:
+	Establece una frecuencia máxima para la compactación de troncos (activadores más frecuentes)
+	tal vez desee compactación diaria en lugar de semanal?
+	
+LOG CLEANUP POLICIES: politicas de limpieza de resgistros
+
+Policy1_:log.cleanup.policy=delete (default para todos usuario topics)
+Eliminar data en base a la antiguedad (default 1 semana)
+Eliminar datos en base al tamaño maximo del registro (default es -1, infinito)
+
+

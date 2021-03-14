@@ -105,3 +105,18 @@ Documentación: https://www.conduktor.io/docs
 Preguntas frecuentes sobre problemas de instalación (en la parte inferior de la página): https://www.conduktor.io/download
 Finalmente, siga a @GetConduktor en Twitter para conocer las últimas actualizaciones.
 Aquí hay algunas capturas de pantalla del software:
+
+
+
+//obtener descripcion de la configuracion del topic
+kafka-configs --zookeeper zookeeper:2181 --entity-type topics --entity-name config-topic --describe
+
+//agregar configuracion al topic
+kafka-configs --zookeeper zookeeper:2181 --entity-type topics --entity-name config-topic --add-config
+
+//agregar configuracion al topic
+kafka-configs --zookeeper zookeeper:2181 --entity-type topics --entity-name config-topic --add-config min.insync.replicas=2 --alter
+
+//eliminar configuracion del topic
+kafka-configs --zookeeper zookeeper:2181 --entity-type topics --entity-name config-topic --delete-config min.insync.replicas --alter
+
